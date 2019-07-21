@@ -12,9 +12,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return new MaterialApp(
       title: 'Flutter Demo',
-      theme: new ThemeData(
-        primarySwatch: Colors.blue,
-      ),
+      theme: ThemeData.dark(),
       home: new MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
@@ -32,13 +30,56 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   ui.Image image;
   bool isImageloaded = false;
-  double _x;
-  double _y;
-  double _len = 0;
+  Offset _startingFocalPoint;
+
+  Offset _previousOffset;
+  Offset _offset = Offset.zero;
+
+  double _previousZoom;
+  double _zoom = 1.0;
 
   void initState() {
     super.initState();
     init();
+  }
+
+  void _handleDragStart(DragStartDetails details) {
+    setState(() {
+      _startingFocalPoint = details.globalPosition;
+      _previousOffset = _offset;
+      _previousZoom = _zoom;
+    });
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    setState(() {
+      _offset += details.globalPosition;
+    });
+  }
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    setState(() {
+      _startingFocalPoint = details.focalPoint;
+      _previousOffset = _offset;
+      _previousZoom = _zoom;
+    });
+  }
+
+  void _handleScaleUpdate(ScaleUpdateDetails details) {
+    setState(() {
+      _zoom = _previousZoom * details.scale;
+
+      // Ensure that item under the focal point stays in the same place despite zooming
+      final Offset normalizedOffset = (_startingFocalPoint - _previousOffset) / _previousZoom;
+      _offset = details.focalPoint - normalizedOffset * _zoom;
+    });
+  }
+
+  void _handleScaleReset() {
+    setState(() {
+      _zoom = 1.0;
+      _offset = Offset.zero;
+    });
   }
 
   Future <Null> init() async {
@@ -60,8 +101,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget _buildImage() {
     if (this.isImageloaded) {
       return new CustomPaint(
-        painter: new ImageEditor(image: image, scrollLen: _len, offset: new Offset(_x, _y)),
-        size: new Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height)
+        painter: new ImageEditor(image: image, scrollLen: _zoom, offset: _offset),
+        size: new Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
       );
     } else {
       return new Center(child: new Text('loading'));
@@ -70,39 +111,21 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-
-    //child: _buildImage(),
-
     return new Scaffold(
         appBar: new AppBar(
           title: new Text(widget.title),
         ),
-        body: new Card(
+        body: new Container(
           child: Center(
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
-              onHorizontalDragStart: (detail) {
-                _x = detail.globalPosition.dx;
-                _y = detail.globalPosition.dy;
-              },
-              onVerticalDragStart: (detail) {
-                _x = detail.globalPosition.dx;
-                _y = detail.globalPosition.dy;
-              },
-              onHorizontalDragUpdate: (detail) {
-                setState(() {
-                _len -= detail.globalPosition.dx - _x;
-                _x = detail.globalPosition.dx;
-                _y = detail.globalPosition.dy;
-                });
-              },
-              onVerticalDragUpdate: (detail) {
-                setState(() {
-                _len += detail.globalPosition.dy - _y;
-                _x = detail.globalPosition.dx;
-                _y = detail.globalPosition.dy;
-                });
-              },
+              onScaleStart: _handleScaleStart,
+              onScaleUpdate: _handleScaleUpdate,
+ //             onHorizontalDragStart: _handleDragStart,
+ //             onVerticalDragStart: _handleDragStart,
+ //             onHorizontalDragUpdate: _handleDragUpdate,
+ //             onVerticalDragUpdate: _handleDragUpdate,
+              onDoubleTap: _handleScaleReset,
               child: _buildImage(),
             ),
       ))
@@ -124,8 +147,14 @@ class ImageEditor extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    //ByteData data = image.toByteData() as ByteData;
-    canvas.drawImage(image, new Offset(offset.dx, offset.dy), new Paint());
+
+    final Offset center = size.center(Offset.zero) * scrollLen + offset;
+    final double radius = size.width / size.height * scrollLen;
+
+    canvas.translate(center.dx, center.dy);
+    canvas.scale(radius);
+
+    canvas.drawImage(image, new Offset(0, 0), new Paint());
 
 
     final p1 = Offset(50, 50);
@@ -138,7 +167,10 @@ class ImageEditor extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(ImageEditor oldDelegate) => oldDelegate.scrollLen != scrollLen;
+  bool shouldRepaint(ImageEditor oldDelegate) {
+    return oldDelegate.scrollLen != scrollLen
+     || oldDelegate.offset != offset;
+  }
 
 }
 
