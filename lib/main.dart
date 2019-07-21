@@ -43,20 +43,6 @@ class _MyHomePageState extends State<MyHomePage> {
     init();
   }
 
-  void _handleDragStart(DragStartDetails details) {
-    setState(() {
-      _startingFocalPoint = details.globalPosition;
-      _previousOffset = _offset;
-      _previousZoom = _zoom;
-    });
-  }
-
-  void _handleDragUpdate(DragUpdateDetails details) {
-    setState(() {
-      _offset += details.globalPosition;
-    });
-  }
-
   void _handleScaleStart(ScaleStartDetails details) {
     setState(() {
       _startingFocalPoint = details.focalPoint;
@@ -68,7 +54,6 @@ class _MyHomePageState extends State<MyHomePage> {
   void _handleScaleUpdate(ScaleUpdateDetails details) {
     setState(() {
       _zoom = _previousZoom * details.scale;
-
       // Ensure that item under the focal point stays in the same place despite zooming
       final Offset normalizedOffset = (_startingFocalPoint - _previousOffset) / _previousZoom;
       _offset = details.focalPoint - normalizedOffset * _zoom;
@@ -121,10 +106,6 @@ class _MyHomePageState extends State<MyHomePage> {
               behavior: HitTestBehavior.translucent,
               onScaleStart: _handleScaleStart,
               onScaleUpdate: _handleScaleUpdate,
- //             onHorizontalDragStart: _handleDragStart,
- //             onVerticalDragStart: _handleDragStart,
- //             onHorizontalDragUpdate: _handleDragUpdate,
- //             onVerticalDragUpdate: _handleDragUpdate,
               onDoubleTap: _handleScaleReset,
               child: _buildImage(),
             ),
