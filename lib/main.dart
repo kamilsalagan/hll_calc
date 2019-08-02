@@ -92,6 +92,7 @@ class _MyHomePageState extends State<MyHomePage> {
         isImageloaded = true;
         _img_height = img.height;
         _img_width = img.width;
+        print('Img W: ' + _img_width.toString() + ' Img H: ' + _img_height.toString());
       });
       return completer.complete(img);
     });
@@ -100,18 +101,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Widget _buildImage() {
     if (this.isImageloaded) {
-      return new GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onScaleStart: _handleScaleStart,
-        onScaleUpdate: _handleScaleUpdate,
-        onDoubleTap: _handleScaleReset,
-        onTapUp: _handleTap,
-        child: new SizedBox(
-          width: _img_width.toDouble(),
-          height: _img_height.toDouble(),
+      return new SizedBox(
+        width: _img_width.toDouble(),
+        height: _img_height.toDouble(),
+        child: new GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onScaleStart: _handleScaleStart,
+          onScaleUpdate: _handleScaleUpdate,
+          onDoubleTap: _handleScaleReset,
+          onTapUp: _handleTap,
           child: new CustomPaint(
-            painter: new ImageEditor(image: image, scrollLen: _zoom, offset: _offset, path: new Path()..lineTo(_drawX, _drawY)),
-            size: new Size(MediaQuery.of(context).size.width, MediaQuery.of(context).size.height),
+            painter: new ImageEditor(image: image, scrollLen: _zoom, offset: _offset, drawX: _drawX, drawY: _drawY),
+            size: new Size(_img_width.toDouble(), _img_height.toDouble()),
           ),
         ),
       );
@@ -122,21 +123,10 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-        appBar: new AppBar(
-          title: new Text(widget.title),
-        ),
-        body: new Container(
-          child: Center(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onScaleStart: _handleScaleStart,
-              onScaleUpdate: _handleScaleUpdate,
-              onDoubleTap: _handleScaleReset,
-              onTapUp: _handleTap,
-              child: _buildImage(),
-            ),
-      ))
+    return new SizedBox(
+      width: _img_width.toDouble(),
+      height: _img_height.toDouble(),
+      child: _buildImage(),
     );
   }
 }
@@ -147,19 +137,30 @@ class ImageEditor extends CustomPainter {
     this.image,
     this.scrollLen,
     this.offset,
-    this.path,
+    this.drawX,
+    this.drawY
   });
 
   ui.Image image;
   final double scrollLen;
   final Offset offset;
-  final Path path;
+  final double drawX;
+  final double drawY;
 
 
 
   @override
   void paint(Canvas canvas, Size size) {
 
+    //size = Size(_img_width.toDouble(), _img_height.toDouble());
+
+    Paint paint = new Paint()
+      ..color = Colors.yellow
+      ..style = PaintingStyle.stroke
+      ..isAntiAlias = true
+      ..strokeWidth = 2.0;
+
+    canvas.drawRect(offset & Size(_img_width.toDouble(), _img_height.toDouble()), paint);
 
 
     double fscale = scrollLen;
@@ -167,7 +168,7 @@ class ImageEditor extends CustomPainter {
       fscale = 0.2;
 
     Offset center = size.center(Offset.zero) * scrollLen + offset;
-    double radius = size.width / size.height * fscale;
+    double radius = _img_width / _img_height * scrollLen;
 
 
 //    double estHeight = _img_height * radius;
@@ -180,44 +181,44 @@ class ImageEditor extends CustomPainter {
 
  //   if (center.dy + estHeight > size.height) //Y + Map height not to exceed screen limits -- Currently not working
  //     center = new Offset(center.dx, center.dy+estHeight);
+ //   double sR = drawX/drawY * scrollLen;
+    double sX = (drawX);
+    double sY = (drawY);
 
-    print('Y Val: ' + center.dy.toString() + ' Rad: ' + radius.toString() + ' est Height: ' + scrollLen.toString() + ' Size: ' + size.height.toString());
 
-    canvas.translate(center.dx, center.dy);
-    canvas.scale(radius);
+    print('X: ' + drawX.toString() + ' Y: ' + drawY.toString() + ' sX: ' + sX.toString() + ' sY: ' + sY.toString() + ' dx: ' + center.dx.toString() + ' dy: ' + center.dy.toString());
+    print('Center: ' + center.toString() + ' Radius: ' + radius.toString() + ' ScrollLen: ' + scrollLen.toString() + ' offset: ' + offset.toString());
+    print('Size X: ' + size.width.toString() + ' Size Y: ' + size.height.toString());
 
-    canvas.drawImage(image, new Offset(0, 0), new Paint());
 
-    path.moveTo(70.0, 100.0);
 
-    Paint paint = new Paint()
-      ..color = Colors.yellow
-      ..style = PaintingStyle.stroke
-      ..isAntiAlias = true
-      ..strokeWidth = 2.0;
+   // canvas.translate(center.dx, center.dy);
+    //canvas.scale(scrollLen);
 
-    canvas.drawPath(path, paint);
 
-/*    if (drawX != 0 && drawY != 0) {
-      final p1 = Offset(70, 300);
-      final p2 = Offset(drawX, drawY);
-      final paint = Paint()
-        ..color = Colors.yellow
-        ..isAntiAlias = true
-        ..strokeWidth = 2;
-      canvas.drawLine(p1, p2, paint);*/
+    canvas.drawImage(image, offset, paint);
+
+    if (drawX != 0 && drawY != 0) {
+      final p1 = new Offset(70 + offset.dx, 300 + offset.dy);
+      final p2 = new Offset(sX, sY);
+      canvas.drawLine(p1, p2, paint);
+    }
+
+
+
+
+
+
+
     }
 
   @override
   bool shouldRepaint(ImageEditor oldDelegate) {
-    return oldDelegate.scrollLen != scrollLen
-     || oldDelegate.offset != offset
-    || oldDelegate.path != path;
-  }
 
-  @override
-  bool hitTest(Offset position) {
-    return path.contains(position);
+   return oldDelegate.scrollLen != scrollLen
+     || oldDelegate.offset != offset
+    || oldDelegate.drawX != drawX
+   || oldDelegate.drawY != drawY;
   }
 
 }
